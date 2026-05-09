@@ -60,6 +60,7 @@ jobs:
   signed-ipa:
     if: github.event_name == 'workflow_dispatch'
     runs-on: macos-15
+    timeout-minutes: 60
     permissions:
       contents: read
     steps:
@@ -117,25 +118,39 @@ jobs:
             | sed -E 's/(PROVISIONING_PROFILE_SPECIFIER = ).*/\1<redacted>/'
 
       - name: Archive Blink
+        timeout-minutes: 35
         run: |
           set -o pipefail
-          xcodebuild archive \
+          mkdir -p build/logs
+          NSUnbufferedIO=YES xcodebuild \
             -project Blink.xcodeproj \
             -scheme Blink \
             -configuration Release \
-            -destination 'generic/platform=iOS' \
+            -sdk iphoneos \
             -archivePath build/Blink.xcarchive \
             -derivedDataPath build/DerivedData \
             -allowProvisioningUpdates \
-            clean archive
+            -showBuildTimingSummary \
+            clean archive 2>&1 | tee build/logs/archive.log
 
       - name: Export signed IPA
         run: |
           set -o pipefail
+          mkdir -p build/logs
           xcodebuild -exportArchive \
             -archivePath build/Blink.xcarchive \
             -exportPath build/export \
-            -exportOptionsPlist build/ci/ExportOptions.plist
+            -exportOptionsPlist build/ci/ExportOptions.plist \
+            2>&1 | tee build/logs/export.log
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blink-build-logs-${{ github.run_number }}
+          path: build/logs/**
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Verify signed IPA
         run: .github/scripts/verify_ipa.sh build/export/Blink.ipa
