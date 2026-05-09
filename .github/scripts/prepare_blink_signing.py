@@ -117,7 +117,10 @@ def prune_entitlements(source: Path, dest: Path, bundle: str, main: bool) -> Non
     ent = plistlib.loads(source.read_bytes())
     allowed = profile_entitlements(bundle)
     ent.pop("com.apple.developer.web-browser", None)
-    ent["aps-environment"] = "production" if EXPORT_METHOD == "ad-hoc" else "development"
+    if allowed.get("aps-environment"):
+        ent["aps-environment"] = allowed["aps-environment"]
+    else:
+        ent.pop("aps-environment", None)
     if not allowed.get("com.apple.security.application-groups"):
         ent.pop("com.apple.security.application-groups", None)
     if not allowed.get("com.apple.developer.icloud-container-identifiers"):
@@ -223,19 +226,21 @@ common = {
     "CODE_SIGN_IDENTITY": '"Apple Distribution"' if EXPORT_METHOD == "ad-hoc" else '"Apple Development"',
     "CODE_SIGN_IDENTITY[sdk=iphoneos*]": '"Apple Distribution"' if EXPORT_METHOD == "ad-hoc" else '"Apple Development"',
 }
+
+release_config_uuids = re.findall(r"\t\t([A-F0-9]{24}) /\* Release \*/ = \{", pbx)
+for uuid in release_config_uuids:
+    pbx = patch_config(pbx, uuid, common)
+
 pbx = patch_config(pbx, "EA0BA1AF1C0CC57C00719C1A", {
-    **common,
     "CODE_SIGN_ENTITLEMENTS": str(main_entitlements.relative_to(ROOT)),
     "INFOPLIST_FILE": str(ci_info.relative_to(ROOT)),
     "PROVISIONING_PROFILE_SPECIFIER": f'"{profile_names[BUNDLE_ID]}"',
 })
 pbx = patch_config(pbx, "98271271262E4BDB00F883FA", {
-    **common,
     "CODE_SIGN_ENTITLEMENTS": str(ext_entitlements.relative_to(ROOT)),
     "PROVISIONING_PROFILE_SPECIFIER": f'"{profile_names[f"{BUNDLE_ID}.BlinkFileProviderExtension"]}"',
 })
 pbx = patch_config(pbx, "BD9EA1D62718E19000874007", {
-    **common,
     "CODE_SIGN_ENTITLEMENTS": None,
     "PROVISIONING_PROFILE_SPECIFIER": f'"{profile_names[f"{BUNDLE_ID}.BlinkFileProviderExtensionUI"]}"',
 })
