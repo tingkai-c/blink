@@ -102,13 +102,21 @@ void __setupProcessEnv(void) {
     NSString *commandsPath = [[NSBundle mainBundle] pathForResource:@"blinkCommandsDictionary" ofType:@"plist"];
     if ([FeatureFlags gplSideload]) {
       NSMutableDictionary *commands = [NSMutableDictionary dictionaryWithContentsOfFile:commandsPath];
-      [commands removeObjectForKey:@"build"];
-      NSString *filteredCommandsPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"blinkCommandsDictionary-gpl.plist"];
-      if ([commands writeToFile:filteredCommandsPath atomically:YES]) {
-        commandsPath = filteredCommandsPath;
+      if (commands != nil) {
+        [commands removeObjectForKey:@"build"];
+        NSString *filteredCommandsPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"blinkCommandsDictionary-gpl.plist"];
+        if ([commands writeToFile:filteredCommandsPath atomically:YES]) {
+          commandsPath = filteredCommandsPath;
+        } else {
+          commandsPath = nil;
+        }
+      } else {
+        commandsPath = nil;
       }
     }
-    addCommandList(commandsPath); // Load blink commands to ios_system
+    if (commandsPath != nil) {
+      addCommandList(commandsPath); // Load blink commands to ios_system
+    }
     __setupProcessEnv(); // we should call this after ios_system initializeEnvironment to override its defaults.
     [AppDelegate _loadProfileVars];
   });

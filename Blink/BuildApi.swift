@@ -86,7 +86,7 @@ enum BuildAPI {
     }
   }
 
-  static func requestService(_ request: URLRequest) async -> (Int32, Data) {
+  private static func requestService(_ request: URLRequest) async -> (Int32, Data) {
     var signal: TokioSignals!
     
     return await withTaskCancellationHandler(operation: {

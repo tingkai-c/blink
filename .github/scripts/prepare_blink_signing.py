@@ -35,8 +35,18 @@ def decode_b64_env(name: str, path: Path) -> None:
     os.chmod(path, 0o600)
 
 
+def redacted_args(args) -> list[str]:
+    redacted = [str(a) for a in args]
+    # Keep CI logs useful without relying on GitHub secret masking for raw
+    # password arguments passed to security(1).
+    for index, value in enumerate(redacted[:-1]):
+        if value in {"-p", "-P", "-k"}:
+            redacted[index + 1] = "<redacted>"
+    return redacted
+
+
 def run(args, **kwargs):
-    print("+", " ".join(str(a) for a in args))
+    print("+", " ".join(redacted_args(args)))
     return subprocess.run(args, check=True, text=True, **kwargs)
 
 
