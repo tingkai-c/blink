@@ -1,56 +1,152 @@
 name: CI
 
-on: [push]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      export_method:
+        description: "IPA export method"
+        type: choice
+        required: true
+        default: ad-hoc
+        options:
+          - ad-hoc
+          - development
 
 jobs:
-  build:
-
-    runs-on: macOS-latest
-    #runs-on: macos-13
-
+  test:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: macos-15
     steps:
-    # - uses: swift-actions/setup-swift@v1
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
 
-    - name: switch xcode
-      run: sudo xcode-select -s '/Applications/Xcode_15.0.app/Contents/Developer'
+      - name: Show Xcode version
+        run: |
+          xcodebuild -version
+          xcode-select -p
 
-    - name: use cache
-      id: cache
-      uses: actions/cache@v2
-      with:
-        path: |
-          xcfs/.build
-          Frameworks/ios_system/xcfs/.build
-        key: ${{ runner.os }}-${{ hashFiles('get_frameworks.sh', 'xcfs/Package.swift') }}
+      - name: Cache Swift packages
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            xcfs/.build
+            Frameworks/ios_system/xcfs/.build
+          key: ${{ runner.os }}-${{ hashFiles('get_frameworks.sh', 'xcfs/Package.swift', 'xcfs/Package.resolved') }}
 
-    - name: get frameworks
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: ./get_frameworks.sh
+      - name: Get frameworks
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ./get_frameworks.sh
 
-    - name: get resources
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: ./get_resources.sh
+      - name: Get resources
+        run: ./get_resources.sh
 
-    - name: copy xcconfig
-      run: cp template_setup.xcconfig developer_setup.xcconfig
+      - name: Prepare default developer config
+        run: cp template_setup.xcconfig developer_setup.xcconfig
 
-    - name: BlinkTests
-      run: xcodebuild -project Blink.xcodeproj -scheme BlinkTests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPad Air (5th generation)' test | xcpretty
+      - name: Build tests for simulator
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Blink.xcodeproj \
+            -scheme BlinkTests \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            build-for-testing
 
-    # - name: actual build
-    #   run: set -o pipefail && xcodebuild archive -project Blink.xcodeproj -scheme Blink -sdk iphoneos -configuration Debug clean build IPHONEOS_DEPLOYMENT_TARGET='16.1' CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO | tee build.log | xcpretty
+  signed-ipa:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
 
-    # - name: generate unsigned debug ipa
-    #   run: |
-    #     cd ~
-    #     mkdir Payload
-    #     mv ~/Library/Developer/Xcode/Archives/*/*/Products/Applications/Blink.app ~/Payload/
-    #     zip -r Blink.ipa Payload
-    # - name: upload ipa
-    #   uses: actions/upload-artifact@v2.2.0
-    #   with:
-    #     name: 'BlinkShell'
-    #     path: ~/Blink.ipa
+      - name: Show Xcode version
+        run: |
+          xcodebuild -version
+          xcode-select -p
+          xcrun simctl list runtimes | sed -n '1,80p'
+
+      - name: Cache Swift packages
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            xcfs/.build
+            Frameworks/ios_system/xcfs/.build
+          key: ${{ runner.os }}-${{ hashFiles('get_frameworks.sh', 'xcfs/Package.swift', 'xcfs/Package.resolved') }}
+
+      - name: Get frameworks
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ./get_frameworks.sh
+
+      - name: Get resources
+        run: ./get_resources.sh
+
+      - name: Prepare signing inputs and patch project
+        env:
+          EXPORT_METHOD: ${{ inputs.export_method }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
+          IOS_GROUP_ID: ${{ secrets.IOS_GROUP_ID }}
+          IOS_CLOUD_ID: ${{ secrets.IOS_CLOUD_ID }}
+          IOS_KEYCHAIN_ID1: ${{ secrets.IOS_KEYCHAIN_ID1 }}
+          SIGNING_CERTIFICATE_BASE64: ${{ secrets.SIGNING_CERTIFICATE_BASE64 }}
+          SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          PROFILE_APP_BASE64: ${{ secrets.PROFILE_APP_BASE64 }}
+          PROFILE_FILE_PROVIDER_BASE64: ${{ secrets.PROFILE_FILE_PROVIDER_BASE64 }}
+          PROFILE_FILE_PROVIDER_UI_BASE64: ${{ secrets.PROFILE_FILE_PROVIDER_UI_BASE64 }}
+          TARGET_DEVICE_UDID: ${{ secrets.TARGET_DEVICE_UDID }}
+        run: python3 .github/scripts/prepare_blink_signing.py
+
+      - name: Show resolved signing build settings
+        run: |
+          xcodebuild -showBuildSettings \
+            -project Blink.xcodeproj \
+            -scheme Blink \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            | grep -E 'PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_ENTITLEMENTS|INFOPLIST_FILE|PROVISIONING_PROFILE_SPECIFIER|CODE_SIGN_IDENTITY' \
+            | sed -E 's/(PROVISIONING_PROFILE_SPECIFIER = ).*/\1<redacted>/'
+
+      - name: Archive Blink
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Blink.xcodeproj \
+            -scheme Blink \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Blink.xcarchive \
+            -derivedDataPath build/DerivedData \
+            -allowProvisioningUpdates \
+            clean archive
+
+      - name: Export signed IPA
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath build/Blink.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist build/ci/ExportOptions.plist
+
+      - name: Verify signed IPA
+        run: .github/scripts/verify_ipa.sh build/export/Blink.ipa
+
+      - name: Upload signed IPA and verification report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blink-signed-ipa-${{ github.run_number }}
+          path: |
+            build/export/Blink.ipa
+            build/verification/**
+            build/ci/ExportOptions.redacted.plist
+          if-no-files-found: error
+          retention-days: 14
