@@ -37,6 +37,7 @@
 NSString *__homePath = nil;
 NSString *__documentsPath = nil;
 NSString *__groupContainerPath = nil;
+NSNumber *__appGroupContainerAvailable = nil;
 NSString *__iCloudsDriveDocumentsPath = nil;
 
 + (NSString *)homePath {
@@ -72,6 +73,7 @@ NSString *__iCloudsDriveDocumentsPath = nil;
     NSFileManager *fm = [NSFileManager defaultManager];
     NSURL *groupURL = [fm containerURLForSecurityApplicationGroupIdentifier:groupID];
     NSString *path = groupURL.path;
+    __appGroupContainerAvailable = @(path != nil);
 
     if (path == nil) {
       NSURL *supportURL = [[fm URLsForDirectory:NSApplicationSupportDirectory
@@ -87,6 +89,16 @@ NSString *__iCloudsDriveDocumentsPath = nil;
     __groupContainerPath = path;
   }
   return __groupContainerPath;
+}
+
++ (BOOL)appGroupContainerAvailable {
+  if (__appGroupContainerAvailable == nil) {
+    NSString *groupID = [XCConfig infoPlistFullGroupID];
+    NSURL *groupURL = [[NSFileManager defaultManager] containerURLForSecurityApplicationGroupIdentifier:groupID];
+    __appGroupContainerAvailable = @(groupURL.path != nil);
+  }
+
+  return __appGroupContainerAvailable.boolValue;
 }
 
 + (NSString *)iCloudDriveDocuments

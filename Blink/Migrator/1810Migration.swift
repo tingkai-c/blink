@@ -65,6 +65,11 @@ class MigrationFileProviderReplicatedExtension: MigrationStep {
   }
 
   private func deleteFileProviderStorage() {
+    guard BlinkPaths.appGroupContainerAvailable() else {
+      print("Skipping File Provider storage cleanup because App Group container is unavailable")
+      return
+    }
+
     // Clean up the old File Provider path
     let fileProviderURL = NSFileProviderManager.default.documentStorageURL
 

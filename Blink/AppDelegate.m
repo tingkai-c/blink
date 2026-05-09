@@ -130,7 +130,11 @@ void __setupProcessEnv(void) {
 
   [UIApplication sharedApplication].applicationSupportsShakeToEdit = NO;
   
-  [_NSFileProviderManager syncWithBKHosts];
+  if ([BlinkPaths appGroupContainerAvailable]) {
+    [_NSFileProviderManager syncWithBKHosts];
+  } else {
+    NSLog(@"Skipping File Provider sync because App Group container is unavailable");
+  }
   
   [PurchasesUserModelObjc preparePurchasesUserModel];
   

@@ -37,6 +37,7 @@
 + (NSURL *)homeURL;
 
 + (NSString *) groupContainerPath;
++ (BOOL)appGroupContainerAvailable;
 + (NSString *) documentsPath;
 + (NSString *) iCloudDriveDocuments;
 
