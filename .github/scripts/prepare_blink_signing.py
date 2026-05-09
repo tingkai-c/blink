@@ -101,7 +101,7 @@ profile_names = {bundle: validate_profile(bundle) for bundle in profiles}
         f"CLOUD_ID = {CLOUD_ID}",
         f"KEYCHAIN_ID1 = {KEYCHAIN_ID1}",
         "SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug] = BLINK_PUBLISHING_OPTION_DEVELOPER",
-        "SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Release] = BLINK_PUBLISHING_OPTION_TESTFLIGHT",
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Release] = BLINK_PUBLISHING_OPTION_GPL_SIDELOAD",
         "BLINK_MIGRATION_SCHEME = blinkv15",
         "WHATS_NEW_URL = http:/$()/localhost/whats-new",
         "CONVERSION_OPPORTUNITY_URL = http:/$()/localhost/conversionOpportunity",

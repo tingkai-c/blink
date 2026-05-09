@@ -84,7 +84,17 @@ class BuildAccountModel: ObservableObject {
     return NSPredicate(format:"SELF MATCHES %@", emailRegEx)
   }()
   
+  private var buildDisabledMessage: String {
+    "Blink Build is disabled in this GPL sideload build."
+  }
+
   func checkBuildToken(animated: Bool, showTour: Bool = false) {
+    guard !FeatureFlags.gplSideload else {
+      self.hasBuildToken = false
+      self.showTour = false
+      return
+    }
+
     let value = FileManager.default.fileExists(atPath: BlinkPaths.blinkBuildTokenURL().path)
     guard self.hasBuildToken != value else {
       return
@@ -102,6 +112,11 @@ class BuildAccountModel: ObservableObject {
   }
   
   func signup() async {
+    guard !FeatureFlags.gplSideload else {
+      self.alertErrorMessage = buildDisabledMessage
+      return
+    }
+
     if FeatureFlags.earlyAccessFeatures {
       self.alertErrorMessage =  "Signup with App Store version first."
       return
@@ -129,11 +144,14 @@ class BuildAccountModel: ObservableObject {
   }
   
   public func singin() async throws {
+    guard !FeatureFlags.gplSideload else { throw BuildAPIError.disabled }
     try await BuildAPI.signin()
     self.checkBuildToken(animated: false)
   }
   
   public func trySignIn() async {
+    guard !FeatureFlags.gplSideload else { return }
+
     do {
       // we have subscription. Lets try to signin first
       try await BuildAPI.trySignin()
@@ -144,6 +162,11 @@ class BuildAccountModel: ObservableObject {
   }
   
   public func fetchAccountInfo() async {
+    guard !FeatureFlags.gplSideload else {
+      self.alertErrorMessage = buildDisabledMessage
+      return
+    }
+
     withAnimation {
       self.accountInfoLoadingInProgress = true
     }
@@ -167,6 +190,11 @@ class BuildAccountModel: ObservableObject {
   }
   
   public func fetchUsageBalance() async {
+    guard !FeatureFlags.gplSideload else {
+      self.alertErrorMessage = buildDisabledMessage
+      return
+    }
+
     do {
       self.usageBalance = try await BuildAPI.accountCurrentUsageBalance()
     } catch {
@@ -175,6 +203,11 @@ class BuildAccountModel: ObservableObject {
   }
   
   public func requestAccountDelete() async {
+    guard !FeatureFlags.gplSideload else {
+      self.alertErrorMessage = buildDisabledMessage
+      return
+    }
+
     do {
       try await BuildAPI.requestAccountDelete()
       try? FileManager.default.removeItem(atPath: BlinkPaths.blinkBuildTokenURL().path)

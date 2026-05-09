@@ -101,6 +101,9 @@ struct Complete {
     
     let set = Set<String>(result)
     result = Array(set)
+    if FeatureFlags.gplSideload {
+      result.removeAll(where: { $0 == "build" })
+    }
     result = result.sorted()
     __allCommandsCache = result
     
@@ -113,7 +116,7 @@ struct Complete {
     if let cache = __commandHintsCache {
       return cache
     }
-    let result = [
+    var result = [
       "awk": "Select particular records in a file and perform operations upon them.",
       "bc": "Calculator 🧮.",
       "cat": "Concatenate and print files.",
@@ -194,6 +197,9 @@ struct Complete {
       "build": "Access to Blink dev machines. ⚒ ",
       "facecam": "Control facecam widget"
     ]
+    if FeatureFlags.gplSideload {
+      result.removeValue(forKey: "build")
+    }
     
     __commandHintsCache = result
     return result
@@ -208,7 +214,7 @@ struct Complete {
     case "ls": return .directory
     case "file", "vim", "less": return .file
     case "geo": return .blinkGeo
-    case "build": return .blinkBuild
+    case "build": return FeatureFlags.gplSideload ? .no : .blinkBuild
     case "facecam": return .facecam
     case "help", "exit", "whoami", "config", "clear", "history", "link-files":
       return .no
@@ -383,6 +389,7 @@ struct Complete {
     case .blinkGeo: src = ["track", "lock", "stop", "current", "authorize", "last"]
     case .facecam: src = ["on", "off"]
     case .blinkBuild:
+      guard !FeatureFlags.gplSideload else { return [] }
 //      src = ["machine", "up", "down", "ssh-keys", "containers", "device", "ps", "ssh", "mosh", "balance"]
       return src.filter( {$0.hasPrefix(input)} )
     default: break

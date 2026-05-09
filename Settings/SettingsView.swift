@@ -69,11 +69,11 @@ struct SettingsView: View {
         HStack {
           Label(_entitlements.currentPlanName(), systemImage: "bag")
           Spacer()
-          if !(_entitlements.earlyAccessFeatures.active || FeatureFlags.earlyAccessFeatures) {
+          if !FeatureFlags.gplSideload && !(_entitlements.earlyAccessFeatures.active || FeatureFlags.earlyAccessFeatures) {
             Button("Get Blink+") { _displayBlinkClassicToPlus = true }
           }
         }
-        if _entitlements.earlyAccessFeatures.active {
+        if !FeatureFlags.gplSideload && _entitlements.earlyAccessFeatures.active {
           Row {
             HStack {
               Label("Build Beta", systemImage: "hammer.circle")

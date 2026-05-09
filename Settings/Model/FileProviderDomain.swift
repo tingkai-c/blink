@@ -233,6 +233,11 @@ class FileProviderDomain: Identifiable, Codable, Equatable {
 
 extension _NSFileProviderManager {
   @objc static func syncWithBKHosts() {
+    guard BlinkPaths.appGroupContainerAvailable() else {
+      print("Skipping File Provider sync because App Group container is unavailable")
+      return
+    }
+
     getDomainsWithCompletionHandler { nsDomains, err in
       guard err == nil else {
         print("get domains error", err!)

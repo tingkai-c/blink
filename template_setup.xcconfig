@@ -8,8 +8,8 @@
 // Configuration settings file format documentation can be found at:
 // https://help.apple.com/xcode/#/dev745c5c974
 
-// update TEAM_ID with your apple developer id
-TEAM_ID = A2H2CL32AG
+// update TEAM_ID with your Apple Developer Team ID. CI writes this in developer_setup.xcconfig.
+TEAM_ID =
 
 // BUNDLE_ID is used as name for BUNDLE_IDENTIFIER
 BUNDLE_ID = sh.blink.blinkshell
@@ -28,9 +28,10 @@ KEYCHAIN_ID1 = sh.blink
 // BLINK_PUBLISHING_OPTION_DEVELOPER
 // BLINK_PUBLISHING_OPTION_TESTFLIGHT
 // BLINK_PUBLISHING_OPTION_APPSTORE
+// BLINK_PUBLISHING_OPTION_GPL_SIDELOAD
 
 SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Debug]   = BLINK_PUBLISHING_OPTION_DEVELOPER
-SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Release] = BLINK_PUBLISHING_OPTION_TESTFLIGHT
+SWIFT_ACTIVE_COMPILATION_CONDITIONS[config=Release] = BLINK_PUBLISHING_OPTION_GPL_SIDELOAD
 
 BLINK_MIGRATION_SCHEME = blinkv15
 

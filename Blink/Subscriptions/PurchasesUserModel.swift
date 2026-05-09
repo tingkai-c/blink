@@ -68,6 +68,10 @@ class PurchasesUserModel: ObservableObject {
   static let shared = PurchasesUserModel()
 
   private func refreshProducts() {
+    guard !FeatureFlags.gplSideload else {
+      return
+    }
+
     if self.blinkShellPlusProduct == nil
         || self.classicProduct == nil
         || self.buildBasicProduct == nil
@@ -78,10 +82,16 @@ class PurchasesUserModel: ObservableObject {
   }
 
   private func refreshTokens() {
+    guard !FeatureFlags.gplSideload else { return }
     BuildAccountModel.shared.checkBuildToken(animated: false)
   }
 
   func purchaseBuildBasic() async {
+    guard !FeatureFlags.gplSideload else {
+      self.alertErrorMessage = "Blink Build is disabled in this GPL sideload build."
+      return
+    }
+
     guard let product = buildBasicProduct else {
       self.alertErrorMessage = "Product should be loaded"
       return
@@ -271,6 +281,12 @@ class PurchasesUserModel: ObservableObject {
   }
 
   func restoreActiveAppSubscriptions(alertIfNone: Bool) async -> Bool {
+    if FeatureFlags.gplSideload {
+      self.restoredPurchaseMessage = "GPL Sideload Build is already unlocked."
+      self.restoredPurchaseMessageVisible = true
+      return true
+    }
+
     await _restorePurchases()
 
     if EntitlementsManager.shared.hasActiveSubscriptions() {
@@ -286,6 +302,13 @@ class PurchasesUserModel: ObservableObject {
   }
   
   func restoreBlinkPlusEntitlements(alertIfNone: Bool) async -> Bool {
+    guard !FeatureFlags.gplSideload else {
+      if alertIfNone {
+        self.alertErrorMessage = "Blink Plus restore is disabled in this GPL sideload build."
+      }
+      return false
+    }
+
     await _restorePurchases()
     
     if EntitlementsManager.shared.earlyAccessFeatures.active,
@@ -302,6 +325,13 @@ class PurchasesUserModel: ObservableObject {
   }
   
   func restoreBlinkBuildEntitlements(alertIfNone: Bool) async -> Bool {
+    guard !FeatureFlags.gplSideload else {
+      if alertIfNone {
+        self.alertErrorMessage = "Blink Build is disabled in this GPL sideload build."
+      }
+      return false
+    }
+
     await _restorePurchases()
     
     if EntitlementsManager.shared.build.active {
@@ -327,7 +357,7 @@ class PurchasesUserModel: ObservableObject {
     do {
       let _ = try await Purchases.shared.restorePurchases()
 
-      if EntitlementsManager.shared.build.active {
+      if !FeatureFlags.gplSideload && EntitlementsManager.shared.build.active {
         await BuildAccountModel.shared.trySignIn()
       }
     } catch {
@@ -352,6 +382,8 @@ class PurchasesUserModel: ObservableObject {
   }
 
   private func fetchProducts() {
+    guard !FeatureFlags.gplSideload else { return }
+
     Purchases.shared.getProducts([
       ProductBlinkShellClassicID,
       ProductBlinkShellPlusID,
@@ -380,6 +412,8 @@ class PurchasesUserModel: ObservableObject {
   }
 
   private func fetchTrialEligibility() {
+    guard !FeatureFlags.gplSideload else { return }
+
     Purchases.shared.checkTrialOrIntroDiscountEligibility(
       productIdentifiers: [
         ProductBlinkBuildBasicID,

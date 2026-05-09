@@ -99,7 +99,16 @@ void __setupProcessEnv(void) {
   sideLoading = false; // Turn off extra commands from iOS system
   initializeEnvironment(); // initialize environment variables for iOS system
   dispatch_async(bgQueue, ^{
-    addCommandList([[NSBundle mainBundle] pathForResource:@"blinkCommandsDictionary" ofType:@"plist"]); // Load blink commands to ios_system
+    NSString *commandsPath = [[NSBundle mainBundle] pathForResource:@"blinkCommandsDictionary" ofType:@"plist"];
+    if ([FeatureFlags gplSideload]) {
+      NSMutableDictionary *commands = [NSMutableDictionary dictionaryWithContentsOfFile:commandsPath];
+      [commands removeObjectForKey:@"build"];
+      NSString *filteredCommandsPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"blinkCommandsDictionary-gpl.plist"];
+      if ([commands writeToFile:filteredCommandsPath atomically:YES]) {
+        commandsPath = filteredCommandsPath;
+      }
+    }
+    addCommandList(commandsPath); // Load blink commands to ios_system
     __setupProcessEnv(); // we should call this after ios_system initializeEnvironment to override its defaults.
     [AppDelegate _loadProfileVars];
   });

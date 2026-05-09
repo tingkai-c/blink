@@ -103,6 +103,17 @@ public class EntitlementsManager: ObservableObject, EntitlementsSourceDelegate {
     activeSubscriptions: Set<String>,
     nonSubscriptionTransactions: Set<String>
   ) {
+    if FeatureFlags.gplSideload {
+      // The GPL sideload flavor has a local paywall unlock, but it must not
+      // import server-backed Plus, Build, or early-access entitlements.
+      self.activeSubscriptions = []
+      self.nonSubscriptionTransactions = []
+      self.unlimitedTimeAccess = .inactiveUnlimitedScreenTime
+      self.earlyAccessFeatures = .earlyAccessFeatures
+      self.build = .build
+      return
+    }
+
     // TODO: merge stategy from multiple sources
     self.activeSubscriptions = activeSubscriptions
     self.nonSubscriptionTransactions = nonSubscriptionTransactions
@@ -122,6 +133,9 @@ public class EntitlementsManager: ObservableObject, EntitlementsSourceDelegate {
   }
   
   public func currentPlanName() -> String {
+    if FeatureFlags.gplSideload {
+      return "GPL Sideload Build"
+    }
     if FeatureFlags.earlyAccessFeatures {
       return "TestFlight Plan"
     }
@@ -149,6 +163,11 @@ public class EntitlementsManager: ObservableObject, EntitlementsSourceDelegate {
   }
   
   public func customerTier() -> CustomerTier {
+    if FeatureFlags.gplSideload {
+      // GPL sideload unlocks the local paywall only. It does not activate
+      // Plus, Blink Build, early-access, or server-backed entitlements.
+      return CustomerTier.Classic
+    }
     if activeSubscriptions.contains(ProductBlinkShellPlusID)  || activeSubscriptions.contains(ProductBlinkPlusID)
         || activeSubscriptions.contains(ProductBlinkPlusBuildBasicID)
     {

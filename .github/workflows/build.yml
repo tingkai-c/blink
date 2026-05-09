@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
     inputs:
@@ -58,7 +60,7 @@ jobs:
             build-for-testing
 
   signed-ipa:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: macos-26
     timeout-minutes: 60
     permissions:
@@ -92,7 +94,7 @@ jobs:
 
       - name: Prepare signing inputs and patch project
         env:
-          EXPORT_METHOD: ${{ inputs.export_method }}
+          EXPORT_METHOD: ${{ github.event_name == 'workflow_dispatch' && inputs.export_method || 'ad-hoc' }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           IOS_BUNDLE_ID: ${{ secrets.IOS_BUNDLE_ID }}
           IOS_GROUP_ID: ${{ secrets.IOS_GROUP_ID }}

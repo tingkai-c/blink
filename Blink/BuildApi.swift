@@ -62,12 +62,14 @@ struct BuildUsageBalance: Decodable {
 }
 
 enum BuildAPIError: Error, LocalizedError {
+  case disabled
   case invalidResponse
   case unexpectedResponseStatus(Int)
   case noReceipt
   
   var errorDescription: String? {
     switch self {
+    case .disabled: return "Blink Build is disabled in this GPL sideload build."
     case .invalidResponse: return "Invalid Response from server."
     case .unexpectedResponseStatus(let code): return "Unexpected code \(code)."
     case .noReceipt: return "No receipt"
@@ -78,6 +80,12 @@ enum BuildAPIError: Error, LocalizedError {
 
 enum BuildAPI {
   
+  private static func ensureEnabled() throws {
+    if FeatureFlags.gplSideload {
+      throw BuildAPIError.disabled
+    }
+  }
+
   static func requestService(_ request: URLRequest) async -> (Int32, Data) {
     var signal: TokioSignals!
     
@@ -101,6 +109,7 @@ enum BuildAPI {
   }
   
   public static func accountInfo() async throws -> BuildAccountInfo {
+    try ensureEnabled()
     let (code, data) = await requestService(.init(getJson: _path("/account")))
     if code == 200 {
       return try JSONDecoder().decode(BuildAccountInfo.self, from: data)
@@ -110,6 +119,7 @@ enum BuildAPI {
   }
   
   public static func accountCurrentUsageBalance() async throws -> BuildUsageBalance {
+    try ensureEnabled()
     let (code, data) = await requestService(.init(getJson: _path("/account/current_usage_balance")))
     if code == 200 {
       return try JSONDecoder().decode(BuildUsageBalance.self, from: data)
@@ -118,6 +128,7 @@ enum BuildAPI {
   }
   
   public static func requestAccountDelete() async throws {
+    try ensureEnabled()
     let (code, _) = await requestService(try .init(postJson: _path("/account/request_account_delete")))
     if code == 200 {
       return
@@ -137,6 +148,7 @@ enum BuildAPI {
   }
   
   private static func _post(_ url: URL, params: [String: Any]) async throws -> (Int, Data, [String: Any]) {
+    try ensureEnabled()
     
     let (data, response) = try await URLSession.shared.data(for: .init(postJson: url, params: params))
     
@@ -153,6 +165,7 @@ enum BuildAPI {
   }
   
   private static func _get(_ url: URL, params: [String: Any] = [:]) async throws -> (Int, Data, [String: Any]) {
+    try ensureEnabled()
     
     let (data, response) = try await URLSession.shared.data(for: .init(getJson: url, params: params))
     
@@ -169,6 +182,7 @@ enum BuildAPI {
   }
   
   static func signup(email: String, region: BuildRegion) async throws {
+    try ensureEnabled()
     guard let receiptB64 = Bundle.main.receiptB64() else {
       throw BuildAPIError.noReceipt
     }
@@ -196,6 +210,7 @@ enum BuildAPI {
   }
   
   static func signin() async throws  {
+    try ensureEnabled()
     guard let receiptB64 = Bundle.main.receiptB64() else {
       throw BuildAPIError.noReceipt
     }
@@ -216,6 +231,7 @@ enum BuildAPI {
   }
   
   static func trySignin() async throws {
+    try ensureEnabled()
     guard let receiptB64 = Bundle.main.receiptB64() else {
       throw BuildAPIError.noReceipt
     }
@@ -232,6 +248,7 @@ enum BuildAPI {
   }
   
   static func loginWithToken(token: Data) async throws {
+    try ensureEnabled()
     try token.write(to: BlinkPaths.blinkBuildTokenURL()!)
     if let buildId = TokioSignals.getBuildId() {
       let _ = try await Purchases.shared.logIn(buildId)

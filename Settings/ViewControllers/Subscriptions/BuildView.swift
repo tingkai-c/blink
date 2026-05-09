@@ -40,7 +40,10 @@ struct BuildView: View {
   @Namespace var nspace;
   
   var body: some View {
-    if _account.hasBuildToken {
+    if FeatureFlags.gplSideload {
+      Text("Blink Build is disabled in this GPL sideload build.")
+        .foregroundColor(.secondary)
+    } else if _account.hasBuildToken {
       BuildAccountView(nspace: self.nspace)
     } else if _entitlements.build.active && !_purchases.purchaseInProgress {
       BuildCreateAccountView(nspace: self.nspace)

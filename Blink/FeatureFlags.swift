@@ -34,11 +34,12 @@ import Foundation
 
 // Feature flags definition
 extension FeatureFlags {
+  @objc static let gplSideload           = PublishingOptions.current == .gplSideload
   @objc static let noSubscriptionNag     = _enabled(for: .developer, .testFlight)
-  @objc static let blinkBuild            = _enabled(for: .developer, .testFlight)
-  @objc static let blinkBuildStaging     = _enabled(for: .developer, .testFlight)
+  @objc static let blinkBuild            = _enabled(for: .developer, .testFlight) && !gplSideload
+  @objc static let blinkBuildStaging     = _enabled(for: .developer, .testFlight) && !gplSideload
 //  @objc static let checkReceipt          = _enabled(for: .legacy)
-  @objc static let earlyAccessFeatures   = _enabled(for: .developer, .testFlight)
+  @objc static let earlyAccessFeatures   = _enabled(for: .developer, .testFlight) && !gplSideload
 //  @objc static let earlyAccessFeatures   = _enabled(for: .legacy)
 }
 
@@ -52,8 +53,9 @@ struct PublishingOptions: OptionSet, CustomStringConvertible, CustomDebugStringC
   static let legacyDeveloper  = Self.init(rawValue: 1 << 3)
   static let legacyTestFlight = Self.init(rawValue: 1 << 4)
   static let legacyAppStore   = Self.init(rawValue: 1 << 5)
+  static let gplSideload      = Self.init(rawValue: 1 << 6)
   
-  static let all: Self = [.developer, .testFlight, .appStore, .legacyDeveloper, .legacyTestFlight, .legacyAppStore]
+  static let all: Self = [.developer, .testFlight, .appStore, .legacyDeveloper, .legacyTestFlight, .legacyAppStore, .gplSideload]
   
   static let legacy: Self = [.legacyDeveloper, .legacyTestFlight, .legacyAppStore]
   
@@ -67,6 +69,8 @@ struct PublishingOptions: OptionSet, CustomStringConvertible, CustomDebugStringC
   static var current: Self  = .developer
 #elseif BLINK_PUBLISHING_OPTION_TESTFLIGHT
   static var current: Self  = .testFlight
+#elseif BLINK_PUBLISHING_OPTION_GPL_SIDELOAD
+  static var current: Self  = .gplSideload
 #else
   static var current: Self  = .appStore
 #endif
@@ -81,6 +85,9 @@ struct PublishingOptions: OptionSet, CustomStringConvertible, CustomDebugStringC
     }
     if self.contains(.appStore) {
       result.append("App Store")
+    }
+    if self.contains(.gplSideload) {
+      result.append("GPL Sideload")
     }
     
     if self.contains(.legacyDeveloper) {
@@ -108,6 +115,9 @@ struct PublishingOptions: OptionSet, CustomStringConvertible, CustomDebugStringC
     }
     if self.contains(.appStore) {
       result.append("appStore")
+    }
+    if self.contains(.gplSideload) {
+      result.append("gplSideload")
     }
     
     if self.contains(.legacyDeveloper) {
