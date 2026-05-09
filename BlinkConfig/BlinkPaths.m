@@ -70,7 +70,20 @@ NSString *__iCloudsDriveDocumentsPath = nil;
     NSString *groupID = [XCConfig infoPlistFullGroupID];
 
     NSFileManager *fm = [NSFileManager defaultManager];
-    NSString *path = [fm containerURLForSecurityApplicationGroupIdentifier:groupID].path;
+    NSURL *groupURL = [fm containerURLForSecurityApplicationGroupIdentifier:groupID];
+    NSString *path = groupURL.path;
+
+    if (path == nil) {
+      NSURL *supportURL = [[fm URLsForDirectory:NSApplicationSupportDirectory
+                                      inDomains:NSUserDomainMask] firstObject];
+      if (supportURL == nil) {
+        supportURL = [NSURL fileURLWithPath:[self documentsPath]];
+      }
+      path = [supportURL URLByAppendingPathComponent:@"BlinkGroup"].path;
+      NSLog(@"App Group container '%@' unavailable; using local container at %@", groupID, path);
+    }
+
+    [self _ensureFolderAtPath:path];
     __groupContainerPath = path;
   }
   return __groupContainerPath;
@@ -81,7 +94,13 @@ NSString *__iCloudsDriveDocumentsPath = nil;
   if (__iCloudsDriveDocumentsPath == nil) {
     NSString *iCloudID = [XCConfig infoPlistFullCloudID];
     NSFileManager *fm = [NSFileManager defaultManager];
-    NSString *path = [[fm URLForUbiquityContainerIdentifier:iCloudID] URLByAppendingPathComponent:@"Documents"].path;
+    NSURL *containerURL = [fm URLForUbiquityContainerIdentifier:iCloudID];
+    if (containerURL == nil) {
+      NSLog(@"iCloud container '%@' unavailable; skipping iCloud Drive link", iCloudID);
+      return nil;
+    }
+
+    NSString *path = [containerURL URLByAppendingPathComponent:@"Documents"].path;
     [self _ensureFolderAtPath:path];
     __iCloudsDriveDocumentsPath = path;
   }
@@ -91,8 +110,13 @@ NSString *__iCloudsDriveDocumentsPath = nil;
 
 + (void)linkICloudDriveIfNeeded
 {
+  NSString *destinationPath = [self iCloudDriveDocuments];
+  if (destinationPath == nil) {
+    return;
+  }
+
   [self _linkAtPath:[[self homePath] stringByAppendingPathComponent:@"iCloud"]
-    destinationPath:[self iCloudDriveDocuments]];
+    destinationPath:destinationPath];
 }
 
 + (void)linkDocumentsIfNeeded {
@@ -101,6 +125,10 @@ NSString *__iCloudsDriveDocumentsPath = nil;
 }
 
 + (void)_linkAtPath:(NSString *)path destinationPath:(NSString *)destinationPath {
+  if (path == nil || destinationPath == nil) {
+    return;
+  }
+
   NSFileManager *fm = [NSFileManager defaultManager];
   
   // Don't use fileExists as that would traverse the symlink.
@@ -154,6 +182,10 @@ NSString *__iCloudsDriveDocumentsPath = nil;
 }
 
 + (void)_ensureFolderAtPath:(NSString *)path {
+  if (path == nil) {
+    return;
+  }
+
   BOOL isDir = NO;
   NSFileManager *fm = [NSFileManager defaultManager];
   if ([fm fileExistsAtPath:path isDirectory:&isDir]) {

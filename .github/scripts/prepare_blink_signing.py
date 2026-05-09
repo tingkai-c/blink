@@ -135,8 +135,10 @@ def prune_entitlements(source: Path, dest: Path, bundle: str, main: bool) -> Non
     if not allowed.get("com.apple.developer.user-fonts"):
         ent.pop("com.apple.developer.user-fonts", None)
     # These sandbox-style macOS entitlements are not provisioning-profile controlled for iOS sideload.
+    # Keep application-groups when a provisioning profile actually grants it; iOS uses this
+    # entitlement for App Group containers shared with extensions.
     for key in list(ent):
-        if key.startswith("com.apple.security."):
+        if key.startswith("com.apple.security.") and key != "com.apple.security.application-groups":
             ent.pop(key, None)
     # Data protection is omitted for the CI sideload profile unless Apple embeds it in the profile.
     if "com.apple.developer.default-data-protection" not in allowed:
