@@ -200,19 +200,20 @@ def patch_config(text: str, uuid: str, settings: dict[str, str | None]) -> str:
     start = text.index(marker)
     end = find_pbx_object_end(text, start)
     block = text[start:end]
+    setting_line_prefix = "\n\t\t\t\t"
     for key, value in settings.items():
         quoted_key = re.escape(key)
         line_key = key if re.match(r"^[A-Za-z0-9_]+$", key) else f'"{key}"'
         if value is None:
-            block = re.sub(rf"\n\t\t\t\t\t{quoted_key} = .*?;", "", block)
-            block = re.sub(rf"\n\t\t\t\t\t\"{quoted_key}\" = .*?;", "", block)
+            block = re.sub(rf"{setting_line_prefix}{quoted_key} = .*?;", "", block)
+            block = re.sub(rf"{setting_line_prefix}\"{quoted_key}\" = .*?;", "", block)
             continue
-        new_line = f"\n\t\t\t\t\t{line_key} = {value};"
-        pattern = rf"\n\t\t\t\t\t(?:{quoted_key}|\"{quoted_key}\") = .*?;"
+        new_line = f"{setting_line_prefix}{line_key} = {value};"
+        pattern = rf"{setting_line_prefix}(?:{quoted_key}|\"{quoted_key}\") = .*?;"
         if re.search(pattern, block):
             block = re.sub(pattern, new_line, block)
         else:
-            insert = block.index("\n\t\t\t\t};")
+            insert = block.index("\n\t\t\t};")
             block = block[:insert] + new_line + block[insert:]
     return text[:start] + block + text[end:]
 
