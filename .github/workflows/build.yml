@@ -161,6 +161,7 @@ jobs:
           name: Blink-signed-ipa-${{ github.run_number }}
           path: |
             build/export/Blink.ipa
+            build/Blink.xcarchive/dSYMs/**
             build/verification/**
             build/ci/ExportOptions.redacted.plist
           if-no-files-found: error
